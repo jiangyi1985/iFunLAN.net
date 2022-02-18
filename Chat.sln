@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chat", "Chat\Chat.csproj", "{A176B27A-1A75-4017-8088-581AB374FC3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iFunNet.WebApi", "iFunNet.WebApi\iFunNet.WebApi.csproj", "{1C79614F-D71C-4D69-BEB9-BB43B9ABEDCA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{A176B27A-1A75-4017-8088-581AB374FC3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A176B27A-1A75-4017-8088-581AB374FC3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A176B27A-1A75-4017-8088-581AB374FC3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C79614F-D71C-4D69-BEB9-BB43B9ABEDCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C79614F-D71C-4D69-BEB9-BB43B9ABEDCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C79614F-D71C-4D69-BEB9-BB43B9ABEDCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C79614F-D71C-4D69-BEB9-BB43B9ABEDCA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4C46AD64-7B1D-4ACF-8DBF-FA3332B2EABA}
 	EndGlobalSection
 EndGlobal
