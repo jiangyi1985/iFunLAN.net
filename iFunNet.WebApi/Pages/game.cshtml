@@ -20,11 +20,13 @@
 
 <script src="js/jquery-1.6.4.min.js"></script>
 <script src="js/three.js"></script>
+@*<script src="js/FontLoader.js"></script>
+<script src="js/TextGeometry.js"></script>*@
 <script src="js/dat.gui.min.js"></script>
 <script src="js/stats.min.js"></script>
 <script src="~/js/signalr/dist/browser/signalr.js"></script>
 <script src="~/js/signalr-protocol-msgpack/dist/browser/signalr-protocol-msgpack.js"></script>
-<script src="~/js/game.js?t=@(DateTime.Now)"></script>
+<script src="~/js/gameHub.js?t=@(DateTime.Now)"></script>
 <script>
     class Projectile{
         constructor(){
@@ -59,11 +61,11 @@
         }
 
         moveTo= function (x, y) {
-            me.isAttackMoving = false;
-            me.isMoving = true;
-            me.target = null;
-            me.attackState = 0;
-            me.des = {
+            this.isAttackMoving = false;
+            this.isMoving = true;
+            this.target = null;
+            this.attackState = 0;
+            this.des = {
                 x: x,
                 y: y
             };
@@ -74,19 +76,19 @@
             lineMark.position.y = y;
         };
         attackMoveTo= function (x, y) {
-            me.isAttackMoving = true;
+            this.isAttackMoving = true;
 
-            var a = me.x - enemy.x;
-            var b = me.y - enemy.y;
+            var a = this.x - enemy.x;
+            var b = this.y - enemy.y;
             var dis = Math.sqrt(a * a + b * b);
-            if (dis < me.attackRange) {
-                me.target = enemy;
-                me.isMoving = false;
+            if (dis < this.attackRange) {
+                this.target = enemy;
+                this.isMoving = false;
             } else {
-                me.isMoving = true;
-                me.target = null;
-                me.attackState = 0;
-                me.des = {
+                this.isMoving = true;
+                this.target = null;
+                this.attackState = 0;
+                this.des = {
                     x: x,
                     y: y
                 };
@@ -98,9 +100,9 @@
             lineMark.position.y = y;
         };
         attack= function (obj) {
-            me.isAttackMoving = false;
-            me.target = obj;
-            me.isMoving = false;
+            this.isAttackMoving = false;
+            this.target = obj;
+            this.isMoving = false;
         };
     }
 
@@ -119,25 +121,25 @@
     document.body.appendChild(stats.dom);
 
     //图形化变量调整
-    var gui;
-    window.onload = function () {
-        //var text = new FizzyText();
-        gui = new dat.GUI();
-        gui.add(me, 'attackSpeed', 0.5, 4);
-        gui.add(me, 'attackRange', 1, 30);
-        //gui.add(me, 'foreSwingRatio');
-        //gui.add(me, 'backSwingRatio');
-        gui.add(me, 'foreSwing').listen();
-        gui.add(me, 'backSwing').listen();
-        gui.add(me, 'attackDelay').listen();
-        //gui.add(text, 'speed', -5, 5);
-        //gui.add(text, 'displayOutline');
-        //gui.add(text, 'explode');
+    //var gui;
+    //window.onload = function () {
+    //    //var text = new FizzyText();
+    //    gui = new dat.GUI();
+    //    gui.add(me, 'attackSpeed', 0.5, 4);
+    //    gui.add(me, 'attackRange', 1, 30);
+    //    //gui.add(me, 'foreSwingRatio');
+    //    //gui.add(me, 'backSwingRatio');
+    //    gui.add(me, 'foreSwing').listen();
+    //    gui.add(me, 'backSwing').listen();
+    //    gui.add(me, 'attackDelay').listen();
+    //    //gui.add(text, 'speed', -5, 5);
+    //    //gui.add(text, 'displayOutline');
+    //    //gui.add(text, 'explode');
 
-        $('span:contains("foreSwing")').text('foreSwing(ms)');
-        $('span:contains("backSwing")').text('backSwing(ms)');
-        $('span:contains("attackDelay")').text('attackDelay(ms)');
-    };
+    //    $('span:contains("foreSwing")').text('foreSwing(ms)');
+    //    $('span:contains("backSwing")').text('backSwing(ms)');
+    //    $('span:contains("attackDelay")').text('attackDelay(ms)');
+    //};
 
     //操作状态
     var cameraOnMe = false;
@@ -240,7 +242,12 @@
             case 1: // left mouse click
                 break;
             case 3: // right mouse click
+                //debugger;
+                if(!me) return;
+
+                //clientX:0~1920 --> 0~1 --> 0~2 --> -1~1
                 mouseDown.x = (event.clientX / window.innerWidth) * 2 - 1;
+                //clientY:0~1080 --> 0~1 --> 0~-2 --> 1~-1
                 mouseDown.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
                 raycasterMouseDown.setFromCamera(mouseDown, camera);
@@ -261,7 +268,7 @@
                         break;
                     }
                     
-                    gameHub.move(uid,intersect.x,intersect.y);
+                    gameHub.move(intersect.x,intersect.y);
 
                     me.moveTo(intersect.x, intersect.y);
 
@@ -272,10 +279,18 @@
 
 
     var projectiles = [];
+    var players=[];
+    var me;
 
     var mapSize = 100;
 
     var scene = new THREE.Scene();
+
+    var font;
+    const fontLoader = new THREE.FontLoader();
+    fontLoader.load( 'fonts/helvetiker_regular.typeface.json', function ( response ) {
+					font = response;
+				} );
 
     var camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, 10, 1000);
     camera.up = new THREE.Vector3(0, 0, 1);
@@ -333,19 +348,24 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    //add map to scene
     //create a blue LineBasicMaterial
     var matMapBorder = new THREE.LineBasicMaterial({ color: 0xffffff });
-
     var geoMapBorder = new THREE.Geometry();
     geoMapBorder.vertices.push(new THREE.Vector3(0, 0, 0));
     geoMapBorder.vertices.push(new THREE.Vector3(mapSize, 0, 0));
     geoMapBorder.vertices.push(new THREE.Vector3(mapSize, mapSize, 0));
     geoMapBorder.vertices.push(new THREE.Vector3(0, mapSize, 0));
     geoMapBorder.vertices.push(new THREE.Vector3(0, 0, 0));
-
+    //const verticesMapBorder=new Float32Array([0,0,0,
+    //    mapSize, 0, 0,
+    //    mapSize, mapSize, 0,
+    //    0, mapSize, 0,
+    //    0, 0, 0
+    //]);
+    //geoMapBorder.setAttribute('position',new THREE.Float32BufferAttribute(verticesMapBorder,3));
     var mapBorder = new THREE.Line(geoMapBorder, matMapBorder);
     scene.add(mapBorder);
-
 
     //var material2 = new THREE.LineBasicMaterial({ color: 0x888888 });
 
@@ -356,7 +376,7 @@
     //var line2 = new THREE.Line(geometry2, material2);
     //scene.add(line2);
 
-
+    //add right click marker to scene
     var geoMark = new THREE.Geometry();
     geoMark.vertices.push(new THREE.Vector3(.5, 0, 0));
     geoMark.vertices.push(new THREE.Vector3(-.5, 0, 0));
@@ -364,6 +384,14 @@
     geoMark.vertices.push(new THREE.Vector3(0, .5, 0));
     geoMark.vertices.push(new THREE.Vector3(0, 0, 0));
     geoMark.vertices.push(new THREE.Vector3(0, -.5, 0));
+    //const verticesMark=new Float32Array([.5, 0, 0,
+    //    -.5, 0, 0,
+    //    0, 0, 0,
+    //    0, .5, 0,
+    //    0, 0, 0,
+    //    0, -.5, 0
+    //]);
+    //geoMark.setAttribute('position',new THREE.Float32BufferAttribute(verticesMark,3));
     var matMark = new THREE.LineBasicMaterial({ color: 0x00ff00 });
     var lineMark = new THREE.Line(geoMark, matMark);
     lineMark.visible = false;
@@ -374,6 +402,7 @@
     //var foreSwingRatio = 0.3;
     //var backSwingRatio = 0.3;
 
+    /*
     var me = {
         attackRange: 12,
         //setAttackSpeed: function (aspd)//x attacks per second
@@ -451,44 +480,86 @@
         target: null,
         //projectile:new Projectile()
     }
+    */
 
     //debugger;
     //me.setAttackSpeed(0.8);
 
-    var geoMeCircle = new THREE.CircleGeometry(me.radius, 64);
-    var matMeCircle = new THREE.MeshBasicMaterial({ color: 0x666666 });
-    geoMeCircle.vertices.shift(); // Remove center vertex
-    var meCircle = new THREE.LineLoop(geoMeCircle, matMeCircle);
-    scene.add(meCircle);
+    function CreateMeshForPlayer(player)
+    {
+        var geoMeCircle = new THREE.CircleGeometry(player.radius, 64);
+        var matMeCircle = new THREE.MeshBasicMaterial({ color: 0x666666 });
+        //debugger;
+        geoMeCircle.vertices.shift(); // Remove center vertex
+        //geoMeCircle.attributes['position'].array=geoMeCircle.attributes['position'].array.slice(3);
+        var meCircle = new THREE.LineLoop(geoMeCircle, matMeCircle);
+        scene.add(meCircle);
 
-    //var dirX = me.direction.x - me.x;
-    //var dirY = me.direction.y - me.y;
-    //var dis = me.radius;
-    var x = me.radius;
-    var y = 0;
-    var a1 = -2.5;
-    var a2 = 2.5;
-    var x2 = Math.cos(a1) * x - Math.sin(a1) * y;
-    var y2 = Math.sin(a1) * x + Math.cos(a1) * y;
-    var x3 = Math.cos(a2) * x - Math.sin(a2) * y;
-    var y3 = Math.sin(a2) * x + Math.cos(a2) * y;
+        //var dirX = me.direction.x - me.x;
+        //var dirY = me.direction.y - me.y;
+        //var dis = me.radius;
+        //debugger;
+        var x = player.radius;
+        var y = 0;
+        var a1 = -2.5;
+        var a2 = 2.5;
+        var x2 = Math.cos(a1) * x - Math.sin(a1) * y;
+        var y2 = Math.sin(a1) * x + Math.cos(a1) * y;
+        var x3 = Math.cos(a2) * x - Math.sin(a2) * y;
+        var y3 = Math.sin(a2) * x + Math.cos(a2) * y;
 
 
-    var geoMe = new THREE.Geometry();
-    geoMe.vertices.push(new THREE.Vector3(x, y, 0));
-    geoMe.vertices.push(new THREE.Vector3(x2, y2, 0));
-    geoMe.vertices.push(new THREE.Vector3(-x / 3, -y / 3, 0));
-    geoMe.vertices.push(new THREE.Vector3(x3, y3, 0));
-    //geoMe.vertices.push(new THREE.Vector3(x, y, 0));
-    geoMe.faces.push(new THREE.Face3(0, 3, 2));
-    geoMe.faces.push(new THREE.Face3(0, 2, 1));
-    //geoMe.computeFaceNormals();
-    var matMe = new THREE.MeshBasicMaterial({
-        //side: THREE.DoubleSide,
-        color: me.color
-    });
-    var meLine = new THREE.Mesh(geoMe, matMe);
-    scene.add(meLine);
+        var geoMe = new THREE.Geometry();
+        geoMe.vertices.push(new THREE.Vector3(x, y, 0));
+        geoMe.vertices.push(new THREE.Vector3(x2, y2, 0));
+        geoMe.vertices.push(new THREE.Vector3(-x / 3, -y / 3, 0));
+        geoMe.vertices.push(new THREE.Vector3(x3, y3, 0));
+        //const verticesMe=new Float32Array([x, y, 0,
+        //   x2, y2, 0,
+        //   -x / 3, -y / 3, 0,
+        //    x3, y3, 0
+        //]);
+        //geoMark.setAttribute('position',new THREE.Float32BufferAttribute(verticesMe,3));
+        //geoMe.vertices.push(new THREE.Vector3(x, y, 0));
+        //debugger;
+        geoMe.faces.push(new THREE.Face3(0, 3, 2));
+        geoMe.faces.push(new THREE.Face3(0, 2, 1));
+        //geoMe.computeFaceNormals();
+        var matMe = new THREE.MeshBasicMaterial({
+            //side: THREE.DoubleSide,
+            color: player.color
+        });
+        var meLine = new THREE.Mesh(geoMe, matMe);
+        scene.add(meLine);
+        
+     //   var geoText = new THREE.TextGeometry(player.name, {
+		   // font: font,
+		   // size: 1,
+		   // height: .5,
+		   // curveSegments: 12,
+		   // bevelEnabled: false,
+	    //});
+     //   var matText = new THREE.MeshBasicMaterial({
+     //       //side: THREE.DoubleSide,
+     //       color: player.color
+     //   });
+     //   var meshText = new THREE.Mesh(geoText, matText);
+     //   debugger;
+     //   scene.add(meshText);
+        var div=document.createElement('div');
+        div.style.position='absolute';
+        div.style.zIndex='100';
+        //debugger;
+        //text.style.
+        div.innerText=player.name;
+        div.style.color='#bbb';
+        document.body.appendChild(div);
+
+        //debugger;
+        player.mesh1=meCircle;
+        player.mesh2=meLine;
+        player.text=div;
+    }
 
 
     var enemy = {
@@ -531,6 +602,80 @@
         projectile.mesh=meProj;
     }
 
+    //methods for game hub to call
+    function onServerConnected(){
+        var name = prompt('Enter your name:', '');
+        //debugger;
+        //console.log('user:',name,uid);
+        if (name != null) {
+            //login as a new player
+            gameHub.login(name).then(result => {
+                uid = result;
+
+                //create me
+                me=new Player();
+                me.uid=uid;
+                me.name=name;
+
+                //debugger;
+                CreateMeshForPlayer(me);
+                players.push(me);
+            });
+        }
+        else {
+            //view only mode
+        }
+    }
+    function updateUser(user)    {
+        //debugger;
+        console.log('update user',user,user.x);
+        if(user.Uuid!=me.uid)        {
+            var found=false;
+            for(var i=0;i<players.length;i++)            {
+                var player=players[i];
+                if(player.uid==user.Uuid)                {                    
+                    console.log('update x y');
+                    player.x=user.X;
+                    player.y=user.Y;
+                    found=true;
+                    break;
+                }
+            }
+
+            if(!found)            {                    
+                    console.log('add new');
+                var player=new Player();
+                player.uid=user.Uuid;
+                player.name=user.Name;
+                player.x=user.X;
+                player.y=user.Y;
+
+                CreateMeshForPlayer(player);
+                players.push(player);
+            }
+        }
+    }
+    function playerMoveTo(userUid, x, y)    {
+        for(var i=0;i<players;i++)        {
+            var player=players[i];
+            if(player.uid==userUid)            {
+                player.moveTo(x,y);
+                break;
+            }
+        }
+    }
+    function playerCreateNew(userUid, userName)    {
+        //debugger;
+        if(userUid!=me.uid)
+        {
+            var player=new Player();
+            player.uid=userUid;
+            player.name=userName;
+
+            CreateMeshForPlayer(player);
+            players.push(player);
+        }
+    }
 
     var animate = function () {
         requestAnimationFrame(animate);
@@ -541,111 +686,156 @@
         //camera.position.y += 0.01;
         //camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-        me.attackTime = 1000 / me.attackSpeed;
-        me.foreSwing = me.foreSwingRatio * me.attackTime;
-        me.backSwing = me.backSwingRatio * me.attackTime;
-        me.attackDelay = me.attackTime * (1 - me.foreSwingRatio);
+        //update player status
+        for(var i=0;i<players.length;i++)
+        {
+            var player=players[i];
 
-        if (me.target) { //attacking
-            var a = me.target.x - me.x;
-            var b = me.target.y - me.y;
-            var dis = Math.sqrt(a * a + b * b);
+            //update player object
 
-            me.faceAngle = Math.atan2(b, a);
+            player.attackTime = 1000 / player.attackSpeed;
+            player.foreSwing = player.foreSwingRatio * player.attackTime;
+            player.backSwing = player.backSwingRatio * player.attackTime;
+            player.attackDelay = player.attackTime * (1 - player.foreSwingRatio);
 
-            //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
-
-            //if (dis > me.attackRange) { //too far
-            //    me.x += me.moveDistancePerFrame / dis * a;
-            //    me.y += me.moveDistancePerFrame / dis * b;
-            //} else { //can attack
-            var t = (new Date()).getTime();
-
-            if (me.attackState == 0) {
-                if (dis > me.attackRange) { //too far, move closer
-                    me.x += me.moveDistancePerFrame / dis * a;
-                    me.y += me.moveDistancePerFrame / dis * b;
-                } else if (t - me.projectAt < me.attackDelay) { //can not attack yet
-                } else { //start foreswing
-                    me.attackState = 1;
-                    me.foreSwingAt = t;
-
-                    soundForeSwing.play();
-                }
-            } else if (me.attackState == 1) { //fore-swinging
-                if (t - me.foreSwingAt < me.foreSwing) {
-                    me.currentColor = new THREE.Color(me.color).lerp(new THREE.Color(me.attackingColor), (t - me.foreSwingAt) / me.foreSwing);
-                } else { //launch projectile
-                    //console.log('projectile launched ' + t);
-                                        
-                    var projectile=new Projectile();
-                    projectile.x = me.x;
-                    projectile.y = me.y;
-                    projectile.target = enemy;
-                    ////me.projectile.visible = true;
-                    projectiles.push(projectile);
-                    CreateMeshForProjectile(projectile);
-
-                    if (soundForeSwing.isPlaying)
-                        soundForeSwing.stop();
-
-                    soundProject.play();
-
-                    me.attackState = 2;
-                    me.backSwingAt = t;
-                    me.projectAt = t;
-                }
-            } else if (me.attackState == 2) { //back-swinging
-                if (t - me.backSwingAt < me.backSwing) {
-                    me.currentColor = new THREE.Color(me.attackingColor).lerp(new THREE.Color(me.color), (t - me.backSwingAt) / me.backSwing);
-                } else {
-                    me.attackState = 0;
-                }
-            }
-            //else if (me.attackState == 3) {
-            //    if (t - me.projectAt < me.attackDelay) {
-
-            //    } else {
-            //        me.attackState = 1;
-            //        me.foreSwingAt = t;
-            //    }
-            //}
-            //}
-        } else if (me.isMoving) { //moving
-            var a = me.des.x - me.x;
-            var b = me.des.y - me.y;
-            var dis = Math.sqrt(a * a + b * b);
-
-            me.faceAngle = Math.atan2(b, a);
-
-            me.currentColor = new THREE.Color(me.color);
-
-            //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
-
-            if (dis > me.moveDistancePerFrame) {
-                me.x += me.moveDistancePerFrame / dis * a;
-                me.y += me.moveDistancePerFrame / dis * b;
-            } else {
-                me.isMoving = false;
-            }
-
-            if (soundForeSwing.isPlaying)
-                soundForeSwing.stop();
-
-            if (me.isAttackMoving) {
-                var a = me.x - enemy.x;
-                var b = me.y - enemy.y;
+            if (player.target) { //attacking
+                var a = player.target.x - player.x;
+                var b = player.target.y - player.y;
                 var dis = Math.sqrt(a * a + b * b);
-                if (dis < me.attackRange) {
-                    me.target = enemy;
-                    me.isMoving = false;
+
+                player.faceAngle = Math.atan2(b, a);
+
+                //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
+
+                //if (dis > me.attackRange) { //too far
+                //    me.x += me.moveDistancePerFrame / dis * a;
+                //    me.y += me.moveDistancePerFrame / dis * b;
+                //} else { //can attack
+                var t = (new Date()).getTime();
+
+                if (player.attackState == 0) {
+                    if (dis > player.attackRange) { //too far, move closer
+                        player.x += player.moveDistancePerFrame / dis * a;
+                        player.y += player.moveDistancePerFrame / dis * b;
+                    } else if (t - player.projectAt < player.attackDelay) { //can not attack yet
+                    } else { //start foreswing
+                        player.attackState = 1;
+                        player.foreSwingAt = t;
+
+                        soundForeSwing.play();
+                    }
+                } else if (player.attackState == 1) { //fore-swinging
+                    if (t - player.foreSwingAt < player.foreSwing) {
+                        player.currentColor = new THREE.Color(player.color).lerp(new THREE.Color(player.attackingColor), (t - player.foreSwingAt) / player.foreSwing);
+                    } else { //launch projectile
+                        //console.log('projectile launched ' + t);
+                                        
+                        var projectile=new Projectile();
+                        projectile.x = player.x;
+                        projectile.y = player.y;
+                        projectile.target = enemy;
+                        ////me.projectile.visible = true;
+                        projectiles.push(projectile);
+                        CreateMeshForProjectile(projectile);
+
+                        if (soundForeSwing.isPlaying)
+                            soundForeSwing.stop();
+
+                        soundProject.play();
+
+                        player.attackState = 2;
+                        player.backSwingAt = t;
+                        player.projectAt = t;
+                    }
+                } else if (player.attackState == 2) { //back-swinging
+                    if (t - player.backSwingAt < player.backSwing) {
+                        player.currentColor = new THREE.Color(player.attackingColor).lerp(new THREE.Color(player.color), (t - player.backSwingAt) / player.backSwing);
+                    } else {
+                        player.attackState = 0;
+                    }
+                }
+                //else if (me.attackState == 3) {
+                //    if (t - me.projectAt < me.attackDelay) {
+
+                //    } else {
+                //        me.attackState = 1;
+                //        me.foreSwingAt = t;
+                //    }
+                //}
+                //}
+            } else if (player.isMoving) { //moving
+                var a = player.des.x - player.x;
+                var b = player.des.y - player.y;
+                var dis = Math.sqrt(a * a + b * b);
+
+                player.faceAngle = Math.atan2(b, a);
+
+                player.currentColor = new THREE.Color(player.color);
+
+                //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
+
+                if (dis > player.moveDistancePerFrame) {
+                    player.x += player.moveDistancePerFrame / dis * a;
+                    player.y += player.moveDistancePerFrame / dis * b;
+                } else {
+                    player.isMoving = false;
+                }
+
+                if (soundForeSwing.isPlaying)
+                    soundForeSwing.stop();
+
+                if (player.isAttackMoving) {
+                    var a = player.x - enemy.x;
+                    var b = player.y - enemy.y;
+                    var dis = Math.sqrt(a * a + b * b);
+                    if (dis < player.attackRange) {
+                        player.target = enemy;
+                        player.isMoving = false;
+                    }
                 }
             }
+            
+            //update player mesh
+
+            //debugger;
+            player.mesh1.position.set(player.x, player.y, player.z);
+
+            player.mesh2.position.set(player.x, player.y, player.z);
+            player.mesh2.rotation.z = player.faceAngle;
+            //meLine.material.color.r += .1;
+            player.mesh2.material.color = player.currentColor;
+            //console.log(meLine.material.color);
+
+            //debugger;
+            //console.log(player.mesh1.position);
+            var v=player.mesh1.position.clone();
+            v.project(camera);
+            if(v.x>=-1 && v.x<=0.97 && v.y>=-1 && v.y<=1)
+            {
+                //console.log(v);
+                var top=(1-v.y)*window.innerHeight/2;
+                var left=(v.x+1)*window.innerWidth/2;
+                //console.log(top,left);
+                var width=player.text.clientWidth;
+                player.text.style.top=(top-40)+'px';
+                player.text.style.left=(left-width/2)+'px';
+                player.text.style.display='';
+            }
+            else
+                player.text.style.display='none';
+
+            //console.log(meLine.rotation);
+            //console.log(meLine.geometry.faces);
+            //console.log(meLine.geometry.vertices);
+            //meLine.rotation.z += 0.05;
+            //meLine.rotation.y += 0.02;
+            //meLine.rotation = new THREE.Euler(1, 0, me.faceAngle, 'XYZ');
         }
 
+        //update projectile status
         for(var i=0;i<projectiles.length;i++)
         {
-        //if (me.projectile.target) {
+            //if (me.projectile.target) {
             var projectile=projectiles[i];
 
             var a = projectile.target.x - projectile.x;
@@ -671,7 +861,7 @@
                     soundOnHit.stop();
                 soundOnHit.play();
             }
-        //}
+            //}
         }
 
         if (enemy.isMoving) {
@@ -693,21 +883,6 @@
             }
         }
 
-        meCircle.position.set(me.x, me.y, me.z);
-        meLine.position.set(me.x, me.y, me.z);
-        meLine.rotation.z = me.faceAngle;
-
-        //meLine.material.color.r += .1;
-        meLine.material.color = me.currentColor;
-        //console.log(meLine.material.color);
-
-        //console.log(meLine.rotation);
-        //console.log(meLine.geometry.faces);
-        //console.log(meLine.geometry.vertices);
-        //meLine.rotation.z += 0.05;
-        //meLine.rotation.y += 0.02;
-        //meLine.rotation = new THREE.Euler(1, 0, me.faceAngle, 'XYZ');
-
         enemyCircle.position.set(enemy.x, enemy.y, enemy.z);
         //enemyCircle.position.set(0, 0, 0);
         //enemyCircle.rotation.x += 0.01;
@@ -727,9 +902,9 @@
         lineMark.visible = markTime < 500 && markTime > 50;
 
 
-        if (cameraOnMe) {
-            camera.position.x = me.x;
-            camera.position.y = me.y - 100;
+        if (cameraOnMe && player) {
+            camera.position.x = player.x;
+            camera.position.y = player.y - 100;
         } else {
             if (screenMoveRight && camera.position.x < 100 - 30) camera.position.x += .5;
             if (screenMoveLeft && camera.position.x > -0 + 30) camera.position.x -= .5;

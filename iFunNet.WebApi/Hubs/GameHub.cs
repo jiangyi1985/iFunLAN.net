@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
+using System.Threading.Channels;
 
 namespace iFunNet.WebApi.Hubs
 {
@@ -24,17 +25,33 @@ namespace iFunNet.WebApi.Hubs
             return base.OnDisconnectedAsync(exception);
         }
 
-        public async Task<string> GetUuid(string name)
+        public ChannelReader<User> StreamUsers()
         {
-            return _gameHost.GetUser(Context.ConnectionId).Uuid;
+            return _gameHost.StreamUsers().AsChannelReader(10);
         }
 
-        public async Task Move(string userId, float x, float y)
+        public string Login(string name)
+        {
+            var user = _gameHost.GetUser(Context.ConnectionId);
+            user.Name = name;
+
+            Clients.AllExcept(Context.ConnectionId).SendAsync("UserCreate", user.Uuid,user.Name);
+
+            return user.Uuid;
+        }
+
+        public async Task Move(float x, float y)
         {
             //var httpFeature = Context.Features.Get<IHttpConnectionFeature>();
             //var ip = httpFeature.RemoteIpAddress.ToString();
+            
+            var user = _gameHost.GetUser(Context.ConnectionId);
+            user.X = x;
+            user.Y = y;
 
-            await Clients.All.SendAsync("UserMove", userId, x, y);
+            //_gameHost.Notify(user);
+
+            //await Clients.All.SendAsync("UserMove", user.Uuid, user.X, user.Y);
         }
     }
 }

@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="wwwroot\js\game.js" />
+    <Content Remove="wwwroot\js\gameHub.js" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="wwwroot\js\game.js" />
+    <None Include="wwwroot\js\gameHub.js" />
     <None Include="wwwroot\js\chat.js" />
     <None Include="wwwroot\js\signalr\dist\browser\signalr.js" />
     <None Include="wwwroot\js\signalr\dist\browser\signalr.min.js" />
@@ -20,6 +20,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="6.0.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
+    <PackageReference Include="System.Reactive" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
